@@ -61,10 +61,7 @@ private:
 };
 
 /*
-    Random index generator
-    sample k vectors inside the given dimension, return those vectors
+    Random index sampler with replacement
+    Sample k vectors inside the given dimension, return those vectors
 */
-void pickIdx(const std::vector<int>& dimension, int currMode, int currIdx,
-    int k, std::unordered_map<std::vector<int>, double>& sampledIdx);
-
-void pickIdx(const std::vector<int>& dimension, int k, std::unordered_set<std::vector<int>>& sampledIdx);
+void pickIdx_replacement(const std::vector<int>& dimension, int k, std::unordered_set<std::vector<int>>& sampledIdx);

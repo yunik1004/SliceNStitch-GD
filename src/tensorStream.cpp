@@ -531,7 +531,7 @@ void TensorStream_SGD::_updateAlgorithm(void)
         }
 
         // Insert sampled elements
-        pickIdx(dimension, numSample, sampledIdx);
+        pickIdx_replacement(dimension, numSample, sampledIdx);
     }
 
     const int numSampleReal = sampledIdx.size();
