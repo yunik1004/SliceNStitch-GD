@@ -18,6 +18,8 @@ TensorStream* generateTensorStream(DataStream& paperX, const Config& config)
         ts = new TensorStream_GD(paperX, config);
     } else if (config.algo() == "SGD") {
         ts = new TensorStream_SGD(paperX, config);
+    } else if (config.algo() == "WSGD") {
+        ts = new TensorStream_WSGD(paperX, config);
     } else {
         ts = new TensorStream(paperX, config);
     }
@@ -510,6 +512,73 @@ TensorStream_SGD::TensorStream_SGD(DataStream& paperX, const Config& config)
 }
 
 void TensorStream_SGD::_updateAlgorithm(void)
+{
+    const std::vector<int>& dimension = _X->dimension();
+    const int numMode = _config->numMode();
+    const int rank = _config->rank();
+    const std::vector<std::vector<int>>& nnzIdxLists = _dX->idxLists();
+    const std::vector<SpTensor_Hash::row_vector>& elemsdX = _dX->elems();
+    const int numSample = _config->findAlgoSettings<int>("numSample");
+    const double lr = _config->findAlgoSettings<double>("learningRate"); // Set the learning rate
+
+    // Sample indices without replacement
+    std::unordered_set<std::vector<int>> sampledIdx;
+    {
+        // Insert changed elements
+        for (int const& i : nnzIdxLists[0]) {
+            const SpTensor_Hash::coord_map& cmap = elemsdX[0][i];
+            for (const auto& it : cmap) {
+                sampledIdx.insert(it.first);
+            }
+        }
+
+        // Insert sampled elements
+        pickIdx_replacement(dimension, numSample, sampledIdx);
+    }
+
+    const int numSampleReal = sampledIdx.size();
+
+    // Set gradients
+    std::vector<Eigen::MatrixXd> gradAs(numSampleReal);
+    {
+        int i = 0;
+        for (const auto& e : sampledIdx) {
+            const double val_real = _X->find(e);
+            const double val_reconst = find_reconst(e);
+
+            gradAs[i] = Eigen::MatrixXd::Constant(numMode, rank, val_reconst - val_real);
+            for (int m = 0; m < numMode; ++m) {
+                for (int n = 0; n < numMode; ++n) {
+                    if (n == m) {
+                        continue;
+                    }
+                    gradAs[i].row(m) = gradAs[i].row(m).cwiseProduct(_A[n].row(e[n]));
+                }
+            }
+
+            ++i;
+        }
+    }
+
+    // Update factor matrices
+    {
+        int i = 0;
+        for (const auto& e : sampledIdx) {
+            for (int m = 0; m < numMode; ++m) {
+                _A[m].row(e[m]) -= lr / numSampleReal * gradAs[i].row(m); // Divide by the total number of samples
+            }
+            ++i;
+        }
+    }
+}
+
+TensorStream_WSGD::TensorStream_WSGD(DataStream& paperX, const Config& config)
+    : TensorStream(paperX, config)
+{
+    _use_AtA = false;
+}
+
+void TensorStream_WSGD::_updateAlgorithm(void)
 {
     const std::vector<int>& dimension = _X->dimension();
     const int numMode = _config->numMode();

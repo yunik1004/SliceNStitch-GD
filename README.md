@@ -96,6 +96,14 @@ algorithm:
         learningRate: 0.01
 ```
 
+```yaml
+algorithm:
+    name: "WSGD"
+    settings:
+        numSample: 100
+        learningRate: 0.01
+```
+
 ## Input & Output Format
 
 Input (data:filePath in a config file) must be a CSV file that consists of a multi-aspect data stream.

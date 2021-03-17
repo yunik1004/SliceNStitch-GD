@@ -109,3 +109,12 @@ public:
 protected:
     virtual void _updateAlgorithm(void) override;
 };
+
+class TensorStream_WSGD : public TensorStream {
+public:
+    TensorStream_WSGD(DataStream& paperX, const Config& config);
+    virtual ~TensorStream_WSGD(void) {}
+
+protected:
+    virtual void _updateAlgorithm(void) override;
+};
