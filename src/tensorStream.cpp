@@ -563,7 +563,7 @@ void TensorStream_SGD::_updateAlgorithm(void)
         int i = 0;
         for (const auto& e : sampledIdx) {
             for (int m = 0; m < numMode; ++m) {
-                _A[m].row(e[m]) -= lr * gradAs[i].row(m);
+                _A[m].row(e[m]) -= lr / numSampleReal * gradAs[i].row(m); // Divide by the total number of samples
             }
             ++i;
         }

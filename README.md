@@ -67,8 +67,8 @@ tensor:
 algorithm:
     name: "SGD"
     settings:  # Details are described in the next section
-        numSample: 20
-        learningRate: 0.0001
+        numSample: 100
+        learningRate: 0.01
 
 test:
     outputPath: "out.txt"  # Path of the output file
@@ -92,8 +92,8 @@ algorithm:
 algorithm:
     name: "SGD"
     settings:
-        numSample: 0
-        learningRate: 0.0001
+        numSample: 100
+        learningRate: 0.01
 ```
 
 ## Input & Output Format
