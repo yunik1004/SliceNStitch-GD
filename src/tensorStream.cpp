@@ -521,7 +521,7 @@ void TensorStream_SGD::_updateAlgorithm(void)
     const int numSample = _config->findAlgoSettings<int>("numSample");
     const double lr = _config->findAlgoSettings<double>("learningRate"); // Set the learning rate
 
-    // Sample indices without replacement
+    // Sample indices with replacement
     std::unordered_set<std::vector<int>> sampledIdx;
     {
         // Insert changed elements
@@ -588,7 +588,7 @@ void TensorStream_WSGD::_updateAlgorithm(void)
     const int numSample = _config->findAlgoSettings<int>("numSample");
     const double lr = _config->findAlgoSettings<double>("learningRate"); // Set the learning rate
 
-    // Sample indices without replacement
+    // Sample indices with replacement
     std::unordered_set<std::vector<int>> sampledIdx;
     {
         // Insert changed elements
@@ -598,6 +598,8 @@ void TensorStream_WSGD::_updateAlgorithm(void)
                 sampledIdx.insert(it.first);
             }
         }
+
+        // TODO: Insert non-zero elements
 
         // Insert sampled elements
         pickIdx_replacement(dimension, numSample, sampledIdx);
