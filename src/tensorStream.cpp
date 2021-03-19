@@ -622,6 +622,23 @@ void TensorStream_MomentumSGD::_updateAlgorithm(void)
         }
     }
 
+    // Reset rows of V which are correspond to dX
+    {
+        const std::vector<int>& dimension = _X->dimension();
+        const std::vector<std::vector<int>>& nnzIdxLists = _dX->idxLists();
+        const std::vector<SpTensor_Hash::row_vector>& elemsdX = _dX->elems();
+
+        for (int const& i : nnzIdxLists[0]) {
+            const SpTensor_Hash::coord_map& cmap = elemsdX[0][i];
+            for (const auto& it : cmap) {
+                const std::vector<int>& idx = it.first;
+                for (int m = 0; m < numMode; ++m) {
+                    _V[m].row(idx[m]).setZero();
+                }
+            }
+        }
+    }
+
     // Update factor matrices
     for (int m = 0; m < numMode; ++m) {
         for (const auto& g : gradA[m]) {
