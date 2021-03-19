@@ -206,7 +206,7 @@ Config::Config(const std::string& configPath)
         } else if (_algo == "SGD") {
             _algo_settings["numSample"] = algo_settings["numSample"].as<int>();
             _algo_settings["learningRate"] = algo_settings["learningRate"].as<double>();
-        } else if (_algo == "WSGD") {
+        } else if (_algo == "MomentumSGD") {
             _algo_settings["numSample"] = algo_settings["numSample"].as<int>();
             _algo_settings["learningRate"] = algo_settings["learningRate"].as<double>();
         } else {

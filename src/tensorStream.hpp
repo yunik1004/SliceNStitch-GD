@@ -94,26 +94,41 @@ protected:
 
 class TensorStream_GD : public TensorStream {
 public:
-    TensorStream_GD(DataStream& paperX, const Config& config);
+    TensorStream_GD(DataStream& paperX, const Config& config)
+        : TensorStream(paperX, config)
+        , _lr(_config->findAlgoSettings<double>("learningRate"))
+    {
+    }
     virtual ~TensorStream_GD(void) {}
 
 protected:
     virtual void _updateAlgorithm(void) override;
+
+    const double _lr; // learning rate
 };
 
-class TensorStream_SGD : public TensorStream {
+class TensorStream_SGD : public TensorStream_GD {
 public:
     TensorStream_SGD(DataStream& paperX, const Config& config);
     virtual ~TensorStream_SGD(void) {}
 
 protected:
     virtual void _updateAlgorithm(void) override;
+
+    // Sample entries with replacement including the currently updated entries.
+    // It returns the number of sampled entries.
+    int _sampleEntry(std::unordered_set<std::vector<int>>& sampledIdx) const;
+
+    const int _numSample; // The number of samples
 };
 
-class TensorStream_WSGD : public TensorStream {
+class TensorStream_MomentumSGD : public TensorStream_SGD {
 public:
-    TensorStream_WSGD(DataStream& paperX, const Config& config);
-    virtual ~TensorStream_WSGD(void) {}
+    TensorStream_MomentumSGD(DataStream& paperX, const Config& config)
+        : TensorStream_SGD(paperX, config)
+    {
+    }
+    virtual ~TensorStream_MomentumSGD(void) {}
 
 protected:
     virtual void _updateAlgorithm(void) override;

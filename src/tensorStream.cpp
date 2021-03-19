@@ -18,8 +18,8 @@ TensorStream* generateTensorStream(DataStream& paperX, const Config& config)
         ts = new TensorStream_GD(paperX, config);
     } else if (config.algo() == "SGD") {
         ts = new TensorStream_SGD(paperX, config);
-    } else if (config.algo() == "WSGD") {
-        ts = new TensorStream_WSGD(paperX, config);
+    } else if (config.algo() == "MomentumSGD") {
+        ts = new TensorStream_MomentumSGD(paperX, config);
     } else {
         ts = new TensorStream(paperX, config);
     }
@@ -441,18 +441,12 @@ void TensorStream::_recurrent_als(void)
     }
 }
 
-TensorStream_GD::TensorStream_GD(DataStream& paperX, const Config& config)
-    : TensorStream(paperX, config)
-{
-}
-
 void TensorStream_GD::_updateAlgorithm(void)
 {
     const std::vector<int>& dimension = _X->dimension();
     const int numMode = _config->numMode();
     const int rank = _config->rank();
     const std::vector<SpTensor_Hash::row_vector>& elems = _X->elems();
-    const double lr = _config->findAlgoSettings<double>("learningRate"); // Set the learning rate
 
     std::vector<Eigen::MatrixXd> gradA(numMode);
 
@@ -500,43 +494,25 @@ void TensorStream_GD::_updateAlgorithm(void)
 
     // Update A and AtA
     for (int m = 0; m < numMode; ++m) {
-        _A[m] -= lr * gradA[m];
+        _A[m] -= _lr * gradA[m];
         _AtA[m] = (_A[m].transpose() * _A[m]).array();
     }
 }
 
 TensorStream_SGD::TensorStream_SGD(DataStream& paperX, const Config& config)
-    : TensorStream(paperX, config)
+    : TensorStream_GD(paperX, config)
+    , _numSample(_config->findAlgoSettings<int>("numSample"))
 {
     _use_AtA = false;
 }
 
 void TensorStream_SGD::_updateAlgorithm(void)
 {
-    const std::vector<int>& dimension = _X->dimension();
     const int numMode = _config->numMode();
     const int rank = _config->rank();
-    const std::vector<std::vector<int>>& nnzIdxLists = _dX->idxLists();
-    const std::vector<SpTensor_Hash::row_vector>& elemsdX = _dX->elems();
-    const int numSample = _config->findAlgoSettings<int>("numSample");
-    const double lr = _config->findAlgoSettings<double>("learningRate"); // Set the learning rate
 
-    // Sample indices with replacement
     std::unordered_set<std::vector<int>> sampledIdx;
-    {
-        // Insert changed elements
-        for (int const& i : nnzIdxLists[0]) {
-            const SpTensor_Hash::coord_map& cmap = elemsdX[0][i];
-            for (const auto& it : cmap) {
-                sampledIdx.insert(it.first);
-            }
-        }
-
-        // Insert sampled elements
-        pickIdx_replacement(dimension, numSample, sampledIdx);
-    }
-
-    const int numSampleReal = sampledIdx.size();
+    const int numSampleReal = _sampleEntry(sampledIdx);
 
     // Set gradients
     std::vector<Eigen::MatrixXd> gradAs(numSampleReal);
@@ -546,7 +522,7 @@ void TensorStream_SGD::_updateAlgorithm(void)
             const double val_real = _X->find(e);
             const double val_reconst = find_reconst(e);
 
-            gradAs[i] = Eigen::MatrixXd::Constant(numMode, rank, val_reconst - val_real);
+            gradAs[i] = Eigen::MatrixXd::Constant(numMode, rank, (val_reconst - val_real) / numSampleReal);
             for (int m = 0; m < numMode; ++m) {
                 for (int n = 0; n < numMode; ++n) {
                     if (n == m) {
@@ -565,47 +541,44 @@ void TensorStream_SGD::_updateAlgorithm(void)
         int i = 0;
         for (const auto& e : sampledIdx) {
             for (int m = 0; m < numMode; ++m) {
-                _A[m].row(e[m]) -= lr / numSampleReal * gradAs[i].row(m); // Divide by the total number of samples
+                _A[m].row(e[m]) -= _lr * gradAs[i].row(m);
             }
             ++i;
         }
     }
 }
 
-TensorStream_WSGD::TensorStream_WSGD(DataStream& paperX, const Config& config)
-    : TensorStream(paperX, config)
-{
-    _use_AtA = false;
-}
-
-void TensorStream_WSGD::_updateAlgorithm(void)
+int TensorStream_SGD::_sampleEntry(std::unordered_set<std::vector<int>>& sampledIdx) const
 {
     const std::vector<int>& dimension = _X->dimension();
-    const int numMode = _config->numMode();
-    const int rank = _config->rank();
     const std::vector<std::vector<int>>& nnzIdxLists = _dX->idxLists();
     const std::vector<SpTensor_Hash::row_vector>& elemsdX = _dX->elems();
-    const int numSample = _config->findAlgoSettings<int>("numSample");
-    const double lr = _config->findAlgoSettings<double>("learningRate"); // Set the learning rate
 
     // Sample indices with replacement
-    std::unordered_set<std::vector<int>> sampledIdx;
-    {
-        // Insert changed elements
-        for (int const& i : nnzIdxLists[0]) {
-            const SpTensor_Hash::coord_map& cmap = elemsdX[0][i];
-            for (const auto& it : cmap) {
-                sampledIdx.insert(it.first);
-            }
+    int numdX = 0;
+    // Insert changed elements
+    for (int const& i : nnzIdxLists[0]) {
+        const SpTensor_Hash::coord_map& cmap = elemsdX[0][i];
+        for (const auto& it : cmap) {
+            sampledIdx.insert(it.first);
+            ++numdX;
         }
-
-        // TODO: Insert non-zero elements
-
-        // Insert sampled elements
-        pickIdx_replacement(dimension, numSample, sampledIdx);
     }
 
-    const int numSampleReal = sampledIdx.size();
+    // Insert sampled elements
+    pickIdx_replacement(dimension, _numSample, sampledIdx);
+
+    // Return the number of sampled entries
+    return numdX + _numSample;
+}
+
+void TensorStream_MomentumSGD::_updateAlgorithm(void)
+{
+    const int numMode = _config->numMode();
+    const int rank = _config->rank();
+
+    std::unordered_set<std::vector<int>> sampledIdx;
+    const int numSampleReal = _sampleEntry(sampledIdx);
 
     // Set gradients
     std::vector<Eigen::MatrixXd> gradAs(numSampleReal);
@@ -615,7 +588,7 @@ void TensorStream_WSGD::_updateAlgorithm(void)
             const double val_real = _X->find(e);
             const double val_reconst = find_reconst(e);
 
-            gradAs[i] = Eigen::MatrixXd::Constant(numMode, rank, val_reconst - val_real);
+            gradAs[i] = Eigen::MatrixXd::Constant(numMode, rank, (val_reconst - val_real) / numSampleReal);
             for (int m = 0; m < numMode; ++m) {
                 for (int n = 0; n < numMode; ++n) {
                     if (n == m) {
@@ -634,7 +607,7 @@ void TensorStream_WSGD::_updateAlgorithm(void)
         int i = 0;
         for (const auto& e : sampledIdx) {
             for (int m = 0; m < numMode; ++m) {
-                _A[m].row(e[m]) -= lr / numSampleReal * gradAs[i].row(m); // Divide by the total number of samples
+                _A[m].row(e[m]) -= _lr * gradAs[i].row(m);
             }
             ++i;
         }

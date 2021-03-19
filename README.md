@@ -98,7 +98,7 @@ algorithm:
 
 ```yaml
 algorithm:
-    name: "WSGD"
+    name: "MomentumSGD"
     settings:
         numSample: 100
         learningRate: 0.01
