@@ -209,6 +209,7 @@ Config::Config(const std::string& configPath)
         } else if (_algo == "MomentumSGD") {
             _algo_settings["numSample"] = algo_settings["numSample"].as<int>();
             _algo_settings["learningRate"] = algo_settings["learningRate"].as<double>();
+            _algo_settings["momentum"] = algo_settings["momentum"].as<double>();
         } else {
             std::cerr << "Error: This algorithm is not allowed" << std::endl;
             exit(EXIT_FAILURE);

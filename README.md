@@ -102,6 +102,7 @@ algorithm:
     settings:
         numSample: 100
         learningRate: 0.01
+        momentum: 0.1
 ```
 
 ## Input & Output Format

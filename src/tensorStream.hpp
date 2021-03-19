@@ -124,12 +124,12 @@ protected:
 
 class TensorStream_MomentumSGD : public TensorStream_SGD {
 public:
-    TensorStream_MomentumSGD(DataStream& paperX, const Config& config)
-        : TensorStream_SGD(paperX, config)
-    {
-    }
+    TensorStream_MomentumSGD(DataStream& paperX, const Config& config);
     virtual ~TensorStream_MomentumSGD(void) {}
 
 protected:
     virtual void _updateAlgorithm(void) override;
+
+    const double _momentum;
+    std::vector<Eigen::MatrixXd> _V;
 };
