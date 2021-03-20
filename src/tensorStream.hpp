@@ -131,5 +131,6 @@ protected:
     virtual void _updateAlgorithm(void) override;
 
     const double _momentum;
+    const double _momentumNew;
     std::vector<Eigen::MatrixXd> _V;
 };

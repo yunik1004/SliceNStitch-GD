@@ -575,6 +575,7 @@ int TensorStream_SGD::_sampleEntry(std::unordered_set<std::vector<int>>& sampled
 TensorStream_MomentumSGD::TensorStream_MomentumSGD(DataStream& paperX, const Config& config)
     : TensorStream_SGD(paperX, config)
     , _momentum(_config->findAlgoSettings<double>("momentum"))
+    , _momentumNew(_config->findAlgoSettings<double>("momentumNew"))
 {
     const std::vector<int>& dimension = _X->dimension();
     const int numMode = _config->numMode();
@@ -622,7 +623,7 @@ void TensorStream_MomentumSGD::_updateAlgorithm(void)
         }
     }
 
-    // Reset rows of V which are correspond to dX
+    // Downgrades the rows of V which are correspond to dX
     {
         const std::vector<int>& dimension = _X->dimension();
         const std::vector<std::vector<int>>& nnzIdxLists = _dX->idxLists();
@@ -633,7 +634,7 @@ void TensorStream_MomentumSGD::_updateAlgorithm(void)
             for (const auto& it : cmap) {
                 const std::vector<int>& idx = it.first;
                 for (int m = 0; m < numMode; ++m) {
-                    _V[m].row(idx[m]).setZero();
+                    _V[m].row(idx[m]) *= _momentumNew;
                 }
             }
         }

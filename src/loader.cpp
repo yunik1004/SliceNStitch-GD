@@ -210,6 +210,7 @@ Config::Config(const std::string& configPath)
             _algo_settings["numSample"] = algo_settings["numSample"].as<int>();
             _algo_settings["learningRate"] = algo_settings["learningRate"].as<double>();
             _algo_settings["momentum"] = algo_settings["momentum"].as<double>();
+            _algo_settings["momentumNew"] = algo_settings["momentumNew"].as<double>();
         } else {
             std::cerr << "Error: This algorithm is not allowed" << std::endl;
             exit(EXIT_FAILURE);
