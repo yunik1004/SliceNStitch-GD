@@ -118,14 +118,15 @@ protected:
     // Sample entries with replacement including the currently updated entries.
     // It returns the number of sampled entries.
     int _sampleEntry(std::unordered_set<std::vector<int>>& sampledIdx) const;
+    void _compute_gradA(std::vector<std::unordered_map<int, Eigen::MatrixXd>>& gradA) const;
 
     const int _numSample; // The number of samples
 };
 
-class TensorStream_MomentumSGD : public TensorStream_SGD {
+class TensorStream_Momentum : public TensorStream_SGD {
 public:
-    TensorStream_MomentumSGD(DataStream& paperX, const Config& config);
-    virtual ~TensorStream_MomentumSGD(void) {}
+    TensorStream_Momentum(DataStream& paperX, const Config& config);
+    virtual ~TensorStream_Momentum(void) {}
 
 protected:
     virtual void _updateAlgorithm(void) override;
@@ -133,4 +134,16 @@ protected:
     const double _momentum;
     const double _momentumNew;
     std::vector<Eigen::MatrixXd> _V;
+};
+
+class TensorStream_RMSProp : public TensorStream_SGD {
+public:
+    TensorStream_RMSProp(DataStream& paperX, const Config& config);
+    virtual ~TensorStream_RMSProp(void) {}
+
+protected:
+    virtual void _updateAlgorithm(void) override;
+
+    const double _decay;
+    std::vector<Eigen::VectorXd> _G;
 };

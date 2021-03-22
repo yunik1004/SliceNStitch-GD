@@ -98,12 +98,21 @@ algorithm:
 
 ```yaml
 algorithm:
-    name: "MomentumSGD"
+    name: "Momentum"
     settings:
         numSample: 100
         learningRate: 0.01
         momentum: 0.9
         momentumNew: 0.1
+```
+
+```yaml
+algorithm:
+    name: "RMSProp"
+    settings:
+        numSample: 100
+        learningRate: 0.01
+        decay: 0.9
 ```
 
 ## Input & Output Format

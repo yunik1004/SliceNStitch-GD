@@ -11,3 +11,7 @@
 #ifndef TENSOR_MACHINE_EPSILON
 #define TENSOR_MACHINE_EPSILON 1e-5
 #endif
+
+#ifndef RMSPROP_EPSILON
+#define RMSPROP_EPSILON 1e-10
+#endif

@@ -206,11 +206,15 @@ Config::Config(const std::string& configPath)
         } else if (_algo == "SGD") {
             _algo_settings["numSample"] = algo_settings["numSample"].as<int>();
             _algo_settings["learningRate"] = algo_settings["learningRate"].as<double>();
-        } else if (_algo == "MomentumSGD") {
+        } else if (_algo == "Momentum") {
             _algo_settings["numSample"] = algo_settings["numSample"].as<int>();
             _algo_settings["learningRate"] = algo_settings["learningRate"].as<double>();
             _algo_settings["momentum"] = algo_settings["momentum"].as<double>();
             _algo_settings["momentumNew"] = algo_settings["momentumNew"].as<double>();
+        } else if (_algo == "RMSProp") {
+            _algo_settings["numSample"] = algo_settings["numSample"].as<int>();
+            _algo_settings["learningRate"] = algo_settings["learningRate"].as<double>();
+            _algo_settings["decay"] = algo_settings["decay"].as<double>();
         } else {
             std::cerr << "Error: This algorithm is not allowed" << std::endl;
             exit(EXIT_FAILURE);

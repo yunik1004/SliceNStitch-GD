@@ -18,8 +18,10 @@ TensorStream* generateTensorStream(DataStream& paperX, const Config& config)
         ts = new TensorStream_GD(paperX, config);
     } else if (config.algo() == "SGD") {
         ts = new TensorStream_SGD(paperX, config);
-    } else if (config.algo() == "MomentumSGD") {
-        ts = new TensorStream_MomentumSGD(paperX, config);
+    } else if (config.algo() == "Momentum") {
+        ts = new TensorStream_Momentum(paperX, config);
+    } else if (config.algo() == "RMSProp") {
+        ts = new TensorStream_RMSProp(paperX, config);
     } else {
         ts = new TensorStream(paperX, config);
     }
@@ -572,26 +574,7 @@ int TensorStream_SGD::_sampleEntry(std::unordered_set<std::vector<int>>& sampled
     return numdX + _numSample;
 }
 
-TensorStream_MomentumSGD::TensorStream_MomentumSGD(DataStream& paperX, const Config& config)
-    : TensorStream_SGD(paperX, config)
-    , _momentum(_config->findAlgoSettings<double>("momentum"))
-    , _momentumNew(_config->findAlgoSettings<double>("momentumNew"))
-{
-    const std::vector<int>& dimension = _X->dimension();
-    const int numMode = _config->numMode();
-    const int rank = _config->rank();
-
-    /* Initialize V by 0 */
-    {
-        _V.resize(numMode);
-
-        for (int m = 0; m < numMode; ++m) {
-            _V[m] = Eigen::MatrixXd::Zero(dimension[m], rank);
-        }
-    }
-}
-
-void TensorStream_MomentumSGD::_updateAlgorithm(void)
+void TensorStream_SGD::_compute_gradA(std::vector<std::unordered_map<int, Eigen::MatrixXd>>& gradA) const
 {
     const int numMode = _config->numMode();
     const int rank = _config->rank();
@@ -600,7 +583,7 @@ void TensorStream_MomentumSGD::_updateAlgorithm(void)
     const int numSampleReal = _sampleEntry(sampledIdx);
 
     // Compute the gradients
-    std::vector<std::unordered_map<int, Eigen::MatrixXd>> gradA(numMode);
+    gradA.resize(numMode);
     for (const auto& e : sampledIdx) {
         const double val_real = _X->find(e);
         const double val_reconst = find_reconst(e);
@@ -622,6 +605,32 @@ void TensorStream_MomentumSGD::_updateAlgorithm(void)
             }
         }
     }
+}
+
+TensorStream_Momentum::TensorStream_Momentum(DataStream& paperX, const Config& config)
+    : TensorStream_SGD(paperX, config)
+    , _momentum(_config->findAlgoSettings<double>("momentum"))
+    , _momentumNew(_config->findAlgoSettings<double>("momentumNew"))
+{
+    const std::vector<int>& dimension = _X->dimension();
+    const int numMode = _config->numMode();
+    const int rank = _config->rank();
+
+    /* Initialize V by 0 */
+    {
+        _V.resize(numMode);
+
+        for (int m = 0; m < numMode; ++m) {
+            _V[m] = Eigen::MatrixXd::Zero(dimension[m], rank);
+        }
+    }
+}
+
+void TensorStream_Momentum::_updateAlgorithm(void)
+{
+    const int numMode = _config->numMode();
+    std::vector<std::unordered_map<int, Eigen::MatrixXd>> gradA;
+    _compute_gradA(gradA);
 
     // Downgrades the rows of V which are correspond to dX
     {
@@ -644,8 +653,44 @@ void TensorStream_MomentumSGD::_updateAlgorithm(void)
     for (int m = 0; m < numMode; ++m) {
         for (const auto& g : gradA[m]) {
             const int mdx = g.first;
-            _V[m].row(mdx) = _momentum * _V[m].row(mdx) - _lr * g.second;
-            _A[m].row(mdx) += _V[m].row(mdx);
+            const auto newV = _momentum * _V[m].row(mdx) - _lr * g.second;
+            _V[m].row(mdx) = newV;
+            _A[m].row(mdx) += newV;
+        }
+    }
+}
+
+TensorStream_RMSProp::TensorStream_RMSProp(DataStream& paperX, const Config& config)
+    : TensorStream_SGD(paperX, config)
+    , _decay(_config->findAlgoSettings<double>("decay"))
+{
+    const std::vector<int>& dimension = _X->dimension();
+    const int numMode = _config->numMode();
+
+    /* Initialize G by 0 */
+    {
+        _G.resize(numMode);
+
+        for (int m = 0; m < numMode; ++m) {
+            _G[m] = Eigen::VectorXd::Zero(dimension[m]);
+        }
+    }
+}
+
+void TensorStream_RMSProp::_updateAlgorithm(void)
+{
+    const int numMode = _config->numMode();
+    std::vector<std::unordered_map<int, Eigen::MatrixXd>> gradA;
+    _compute_gradA(gradA);
+
+    // Update G
+    for (int m = 0; m < numMode; ++m) {
+        for (const auto& g : gradA[m]) {
+            const int mdx = g.first;
+            const auto& grad = g.second;
+            const double newG = _decay * _G[m][mdx] + (1 - _decay) * grad.squaredNorm();
+            _G[m][mdx] = newG;
+            _A[m].row(mdx) -= _lr / sqrt(newG + RMSPROP_EPSILON) * grad;
         }
     }
 }
