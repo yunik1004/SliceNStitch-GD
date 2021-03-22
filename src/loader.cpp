@@ -215,6 +215,12 @@ Config::Config(const std::string& configPath)
             _algo_settings["numSample"] = algo_settings["numSample"].as<int>();
             _algo_settings["learningRate"] = algo_settings["learningRate"].as<double>();
             _algo_settings["decay"] = algo_settings["decay"].as<double>();
+        } else if (_algo == "Adam") {
+            _algo_settings["numSample"] = algo_settings["numSample"].as<int>();
+            _algo_settings["learningRate"] = algo_settings["learningRate"].as<double>();
+            _algo_settings["beta1"] = algo_settings["beta1"].as<double>();
+            _algo_settings["beta1New"] = algo_settings["beta1New"].as<double>();
+            _algo_settings["beta2"] = algo_settings["beta2"].as<double>();
         } else {
             std::cerr << "Error: This algorithm is not allowed" << std::endl;
             exit(EXIT_FAILURE);

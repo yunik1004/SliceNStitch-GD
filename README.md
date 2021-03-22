@@ -115,6 +115,17 @@ algorithm:
         decay: 0.9
 ```
 
+```yaml
+algorithm:
+    name: "Adam"
+    settings:
+        numSample: 100
+        learningRate: 0.001
+        beta1: 0.9
+        beta1New: 1.0
+        beta2: 0.9
+```
+
 ## Input & Output Format
 
 Input (data:filePath in a config file) must be a CSV file that consists of a multi-aspect data stream.

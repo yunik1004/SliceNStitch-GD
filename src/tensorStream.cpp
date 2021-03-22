@@ -22,6 +22,8 @@ TensorStream* generateTensorStream(DataStream& paperX, const Config& config)
         ts = new TensorStream_Momentum(paperX, config);
     } else if (config.algo() == "RMSProp") {
         ts = new TensorStream_RMSProp(paperX, config);
+    } else if (config.algo() == "Adam") {
+        ts = new TensorStream_Adam(paperX, config);
     } else {
         ts = new TensorStream(paperX, config);
     }
@@ -632,9 +634,8 @@ void TensorStream_Momentum::_updateAlgorithm(void)
     std::vector<std::unordered_map<int, Eigen::MatrixXd>> gradA;
     _compute_gradA(gradA);
 
-    // Downgrades the rows of V which are correspond to dX
+    // Downgrade the rows of V which are correspond to dX
     {
-        const std::vector<int>& dimension = _X->dimension();
         const std::vector<std::vector<int>>& nnzIdxLists = _dX->idxLists();
         const std::vector<SpTensor_Hash::row_vector>& elemsdX = _dX->elems();
 
@@ -683,7 +684,7 @@ void TensorStream_RMSProp::_updateAlgorithm(void)
     std::vector<std::unordered_map<int, Eigen::MatrixXd>> gradA;
     _compute_gradA(gradA);
 
-    // Update G
+    // Update G and A
     for (int m = 0; m < numMode; ++m) {
         for (const auto& g : gradA[m]) {
             const int mdx = g.first;
@@ -691,6 +692,92 @@ void TensorStream_RMSProp::_updateAlgorithm(void)
             const double newG = _decay * _G[m][mdx] + (1 - _decay) * grad.squaredNorm();
             _G[m][mdx] = newG;
             _A[m].row(mdx) -= _lr / sqrt(newG + RMSPROP_EPSILON) * grad;
+        }
+    }
+}
+
+TensorStream_Adam::TensorStream_Adam(DataStream& paperX, const Config& config)
+    : TensorStream_SGD(paperX, config)
+    , _beta1(_config->findAlgoSettings<double>("beta1"))
+    , _beta1New(_config->findAlgoSettings<double>("beta1New"))
+    , _beta2(_config->findAlgoSettings<double>("beta2"))
+{
+    const std::vector<int>& dimension = _X->dimension();
+    const int numMode = _config->numMode();
+    const int rank = _config->rank();
+
+    /* Initialize M by 0 */
+    {
+        _M.resize(numMode);
+
+        for (int m = 0; m < numMode; ++m) {
+            _M[m] = Eigen::MatrixXd::Zero(dimension[m], rank);
+        }
+    }
+
+    /* Initialize V by 0 */
+    {
+        _V.resize(numMode);
+
+        for (int m = 0; m < numMode; ++m) {
+            _V[m] = Eigen::VectorXd::Zero(dimension[m]);
+        }
+    }
+
+    /* Initialize t by 0 */
+    {
+        _t.resize(numMode);
+
+        for (int m = 0; m < numMode; ++m) {
+            _t[m] = Eigen::VectorXd::Zero(dimension[m]);
+        }
+    }
+}
+
+void TensorStream_Adam::_updateAlgorithm(void)
+{
+    const int numMode = _config->numMode();
+    std::vector<std::unordered_map<int, Eigen::MatrixXd>> gradA;
+    _compute_gradA(gradA);
+
+    // Downgrade t and the rows of V which are correspond to dX
+    {
+        const std::vector<std::vector<int>>& nnzIdxLists = _dX->idxLists();
+        const std::vector<SpTensor_Hash::row_vector>& elemsdX = _dX->elems();
+
+        for (int const& i : nnzIdxLists[0]) {
+            const SpTensor_Hash::coord_map& cmap = elemsdX[0][i];
+            for (const auto& it : cmap) {
+                const std::vector<int>& idx = it.first;
+                for (int m = 0; m < numMode; ++m) {
+                    _t[m][idx[m]] = 0;
+                    _M[m].row(idx[m]) *= _beta1New;
+                    //_V[m][idx[m]] *= _beta1New;
+                }
+            }
+        }
+    }
+
+    // Update M, V, and A
+    for (int m = 0; m < numMode; ++m) {
+        for (const auto& g : gradA[m]) {
+            const int mdx = g.first;
+            const auto& grad = g.second;
+
+            const int newt = _t[m][mdx] + 1;
+            _t[m][mdx] = newt;
+
+            const auto newM = _beta1 * _M[m].row(mdx) + (1 - _beta1) * grad;
+            _M[m].row(mdx) = newM;
+
+            const double newV = _beta2 * _V[m][mdx] + (1 - _beta2) * grad.squaredNorm();
+            _V[m][mdx] = newV;
+
+            const auto Mhat = newM / (1 - pow(_beta1, newt));
+            //const auto Vhat = newV / (1 - pow(_beta2, newt));
+            const auto Vhat = newV;
+
+            _A[m].row(mdx) -= _lr / sqrt(Vhat + RMSPROP_EPSILON) * Mhat;
         }
     }
 }

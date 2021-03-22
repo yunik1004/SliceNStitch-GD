@@ -147,3 +147,21 @@ protected:
     const double _decay;
     std::vector<Eigen::VectorXd> _G;
 };
+
+class TensorStream_Adam : public TensorStream_SGD {
+public:
+    TensorStream_Adam(DataStream& paperX, const Config& config);
+    virtual ~TensorStream_Adam(void) {}
+
+protected:
+    virtual void _updateAlgorithm(void) override;
+
+    const double _beta1;
+    const double _beta1New;
+    const double _beta2;
+
+    std::vector<Eigen::MatrixXd> _M;
+    std::vector<Eigen::VectorXd> _V;
+
+    std::vector<Eigen::VectorXd> _t; // The number of update
+};

@@ -13,5 +13,5 @@
 #endif
 
 #ifndef RMSPROP_EPSILON
-#define RMSPROP_EPSILON 1e-10
+#define RMSPROP_EPSILON 1e-8
 #endif
