@@ -10,7 +10,6 @@
 #include <vector>
 
 class Config;
-class SpTensor_List;
 class SpTensor_Hash;
 class SpTensor_dX;
 class DataStream;

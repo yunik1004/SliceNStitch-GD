@@ -27,13 +27,13 @@ public:
     SpTensor_Hash(const std::vector<int>& dimension);
 
     double find(const std::vector<int>& coord) const;
-    virtual void insert(const std::vector<int>& coord, double value);
+    void insert(const std::vector<int>& coord, double value);
     void set(const std::vector<int>& coord, double value); // Override the existed value
 
     const std::vector<row_vector>& elems(void) const { return _elems; }
 
-    virtual void clear(void);
-    const unsigned long long numNnz(void) { return _numNnz; }
+    void clear(void);
+    const unsigned long long numNnz(void) const { return _numNnz; }
 
     double norm_frobenius(void) const;
     double norm_frobenius_latest(void) const;
@@ -43,33 +43,19 @@ protected:
     std::vector<row_vector> _elems; // tree-like
 };
 
-class SpTensor_dX : public SpTensor_Hash {
+class SpTensor_dX {
 public:
-    SpTensor_dX(const std::vector<int>& dimension);
+    SpTensor_dX(void) {}
 
-    virtual void insert(const std::vector<int>& coord, double value) override;
+    double find(const std::vector<int>& coord) const;
+    void insert(const std::vector<int>& coord, double value);
 
-    std::vector<std::vector<int>>& idxLists(void);
+    const std::unordered_map<std::vector<int>, double>& elems(void) const { return _elems; }
 
-    virtual void clear(void) override;
+    void clear(void);
+    const unsigned long long numNnz(void) const { return _numNnz; }
 
 private:
-    std::vector<std::vector<int>> _idxLists;
-    std::vector<std::unordered_map<int, int>> _idxMaps;
-};
-
-class SpTensor_List : public SpTensor {
-public:
-    typedef std::pair<std::vector<int>, double> nnzEntry;
-    typedef std::list<nnzEntry> nnzEntry_list;
-
-    SpTensor_List(const std::vector<int>& nonTempDim, long long tempDim);
-
-    const nnzEntry_list& findAt(long long time) const { return _elems[time]; };
-    virtual void insert(const std::vector<int>& coord, const long long& timeIdx, double value);
-
-private:
-    std::vector<nnzEntry_list> _elems;
-
-    int _order_time;
+    std::unordered_map<std::vector<int>, double> _elems;
+    unsigned long long _numNnz = 0;
 };

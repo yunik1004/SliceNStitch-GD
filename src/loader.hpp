@@ -38,7 +38,6 @@ private:
     Event* parseLine(void);
 };
 
-class SpTensor_List;
 enum class Init;
 
 class Config {

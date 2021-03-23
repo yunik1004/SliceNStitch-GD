@@ -75,7 +75,7 @@ TensorStream::TensorStream(DataStream& paperX, const Config& config)
     }
 
     /* Initialize dX */
-    _dX = new SpTensor_dX(dimension);
+    _dX = new SpTensor_dX();
 
     /* Initialize lambda, A, AtA */
     {
@@ -555,18 +555,14 @@ void TensorStream_SGD::_updateAlgorithm(void)
 int TensorStream_SGD::_sampleEntry(std::unordered_set<std::vector<int>>& sampledIdx) const
 {
     const std::vector<int>& dimension = _X->dimension();
-    const std::vector<std::vector<int>>& nnzIdxLists = _dX->idxLists();
-    const std::vector<SpTensor_Hash::row_vector>& elemsdX = _dX->elems();
 
-    // Sample indices with replacement
+    const std::unordered_map<std::vector<int>, double>& elemsdX = _dX->elems();
+
     int numdX = 0;
     // Insert changed elements
-    for (int const& i : nnzIdxLists[0]) {
-        const SpTensor_Hash::coord_map& cmap = elemsdX[0][i];
-        for (const auto& it : cmap) {
-            sampledIdx.insert(it.first);
-            ++numdX;
-        }
+    for (const auto& it : elemsdX) {
+        sampledIdx.insert(it.first);
+        ++numdX;
     }
 
     // Insert sampled elements
@@ -636,16 +632,12 @@ void TensorStream_Momentum::_updateAlgorithm(void)
 
     // Downgrade the rows of V which are correspond to dX
     {
-        const std::vector<std::vector<int>>& nnzIdxLists = _dX->idxLists();
-        const std::vector<SpTensor_Hash::row_vector>& elemsdX = _dX->elems();
+        const std::unordered_map<std::vector<int>, double>& elemsdX = _dX->elems();
 
-        for (int const& i : nnzIdxLists[0]) {
-            const SpTensor_Hash::coord_map& cmap = elemsdX[0][i];
-            for (const auto& it : cmap) {
-                const std::vector<int>& idx = it.first;
-                for (int m = 0; m < numMode; ++m) {
-                    _V[m].row(idx[m]) *= _momentumNew;
-                }
+        for (const auto& it : elemsdX) {
+            const std::vector<int>& idx = it.first;
+            for (int m = 0; m < numMode; ++m) {
+                _V[m].row(idx[m]) *= _momentumNew;
             }
         }
     }
@@ -742,18 +734,13 @@ void TensorStream_Adam::_updateAlgorithm(void)
 
     // Downgrade t and the rows of V which are correspond to dX
     {
-        const std::vector<std::vector<int>>& nnzIdxLists = _dX->idxLists();
-        const std::vector<SpTensor_Hash::row_vector>& elemsdX = _dX->elems();
-
-        for (int const& i : nnzIdxLists[0]) {
-            const SpTensor_Hash::coord_map& cmap = elemsdX[0][i];
-            for (const auto& it : cmap) {
-                const std::vector<int>& idx = it.first;
-                for (int m = 0; m < numMode; ++m) {
-                    _t[m][idx[m]] = 0;
-                    _M[m].row(idx[m]) *= _beta1New;
-                    //_V[m][idx[m]] *= _beta1New;
-                }
+        const std::unordered_map<std::vector<int>, double>& elemsdX = _dX->elems();
+        for (const auto& it : elemsdX) {
+            const std::vector<int>& idx = it.first;
+            for (int m = 0; m < numMode; ++m) {
+                _t[m][idx[m]] = 0;
+                _M[m].row(idx[m]) *= _beta1New;
+                //_V[m][idx[m]] *= _beta1New;
             }
         }
     }

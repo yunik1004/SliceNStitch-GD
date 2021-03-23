@@ -103,92 +103,35 @@ double SpTensor_Hash::norm_frobenius_latest(void) const
     return sqrt(square_sum);
 }
 
-SpTensor_dX::SpTensor_dX(const std::vector<int>& dimension)
-    : SpTensor_Hash(dimension)
+double SpTensor_dX::find(const std::vector<int>& coord) const
 {
-    _idxLists.resize(_numMode); // Initialize index list
-    _idxMaps.resize(_numMode); // Initialize index map
+    const std::unordered_map<std::vector<int>, double>::const_iterator& it = _elems.find(coord);
+
+    return (it != _elems.end()) ? it->second : 0;
 }
 
 void SpTensor_dX::insert(const std::vector<int>& coord, double value)
 {
     const double preValue = find(coord);
     const double newValue = preValue + value;
+
     const bool prevZero = abs(preValue) < TENSOR_MACHINE_EPSILON;
     const bool newZero = abs(newValue) < TENSOR_MACHINE_EPSILON;
 
     if (!prevZero && newZero) { // Treated as zero
-        for (int m = 0; m < _numMode; ++m) {
-            int currCoord = coord[m];
-            _elems[m][currCoord].erase(coord);
-
-            // Reduce counts for each index of each mode
-            const int count = _idxMaps[m][currCoord] - 1;
-            if (count == 0)
-                _idxMaps[m].erase(currCoord);
-            else
-                _idxMaps[m][currCoord] = count;
-        }
+        _elems.erase(coord);
 
         _numNnz--;
     } else if (!newZero) {
-        for (int m = 0; m < _numMode; ++m) {
-            _elems[m][coord[m]][coord] = newValue;
-        }
+        _elems[coord] = newValue;
 
         if (prevZero) {
-            for (int m = 0; m < _numMode; ++m) {
-                int currCoord = coord[m];
-                auto got = _idxMaps[m].find(currCoord);
-
-                if (got == _idxMaps[m].end())
-                    _idxMaps[m][currCoord] = 1;
-                else
-                    _idxMaps[m][currCoord] = got->second + 1;
-            }
-
             _numNnz++;
         }
     }
 }
 
-std::vector<std::vector<int>>& SpTensor_dX::idxLists(void)
-{
-    for (int m = 0; m < _numMode; ++m) {
-        std::vector<int>& currList = _idxLists[m];
-        const std::unordered_map<int, int>& currMap = _idxMaps[m];
-
-        currList.reserve(currMap.size());
-        for (auto it = currMap.begin(); it != currMap.end(); ++it)
-            currList.push_back(it->first);
-    }
-
-    return _idxLists;
-}
-
 void SpTensor_dX::clear(void)
 {
-    if (_idxLists[0].size() > 0) {
-        for (int m = 0; m < _numMode; ++m) {
-            _idxLists[m].clear();
-            _idxMaps[m].clear();
-        }
-    }
-
-    SpTensor_Hash::clear();
-}
-
-SpTensor_List::SpTensor_List(const std::vector<int>& nonTempDim, long long tempDim)
-    : SpTensor(nonTempDim)
-{
-    _numMode += 1;
-    _order_time = _numMode - 1;
-    const long long& numTime = tempDim;
-    _elems.resize(numTime);
-}
-
-void SpTensor_List::insert(const std::vector<int>& coord, const long long& timeIdx, double value)
-{
-    const nnzEntry nnz = std::make_pair(coord, value);
-    _elems[timeIdx].push_back(nnz);
+    _elems.clear();
 }
