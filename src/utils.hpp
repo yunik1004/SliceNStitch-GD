@@ -5,6 +5,8 @@
 #include <unordered_set>
 #include <vector>
 
+class SpTensor_Hash;
+
 namespace std {
 /* New hash function for the std::vector<int> */
 template <>
@@ -65,3 +67,21 @@ private:
     Sample k vectors inside the given dimension, return those vectors
 */
 void pickIdx_replacement(const std::vector<int>& dimension, int k, std::unordered_set<std::vector<int>>& sampledIdx);
+
+/* Storage for the stream data to randomly select the item */
+class StreamMiner {
+public:
+    StreamMiner(int size, double prob); // Size of the storage, acceptance probability
+    ~StreamMiner(void) {}
+
+    void initialize(SpTensor_Hash* X); // Initialize the streamMiner storage using the given tensor
+
+    void sample(int k, std::unordered_set<std::vector<int>>& sampledIdx) const;
+    void insert(const std::vector<int>& index);
+
+private:
+    const int _size;
+    const double _prob;
+
+    std::vector<std::vector<int>> _storage; // Storage that stores the sampled indices
+};

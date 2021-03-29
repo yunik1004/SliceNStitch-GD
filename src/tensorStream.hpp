@@ -13,6 +13,7 @@ class Config;
 class SpTensor_Hash;
 class SpTensor_dX;
 class DataStream;
+class StreamMiner;
 
 class TensorStream;
 TensorStream* generateTensorStream(DataStream& paperX, const Config& config); // Generate the tensor stream
@@ -22,7 +23,7 @@ public:
     TensorStream(DataStream& paperX, const Config& config);
     virtual ~TensorStream(void);
 
-    void updateTensor(const DataStream::Event& e);
+    virtual void updateTensor(const DataStream::Event& e);
     void updateFactor(void);
 
     double elapsedTime(void) const; // sec
@@ -109,7 +110,9 @@ protected:
 class TensorStream_SGD : public TensorStream_GD {
 public:
     TensorStream_SGD(DataStream& paperX, const Config& config);
-    virtual ~TensorStream_SGD(void) {}
+    virtual ~TensorStream_SGD(void);
+
+    virtual void updateTensor(const DataStream::Event& e) override;
 
 protected:
     virtual void _updateAlgorithm(void) override;
@@ -119,7 +122,11 @@ protected:
     int _sampleEntry(std::unordered_set<std::vector<int>>& sampledIdx) const;
     void _compute_gradA(std::vector<std::unordered_map<int, Eigen::MatrixXd>>& gradA) const;
 
+    StreamMiner* _streamMiner;
+
     const int _numSample; // The number of samples
+    const int _storageSize; // The size of storage of streamMiner
+    const double _prob; // The acceptance probability of streamMiner
 };
 
 class TensorStream_Momentum : public TensorStream_SGD {

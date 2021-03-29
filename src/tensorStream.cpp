@@ -506,8 +506,48 @@ void TensorStream_GD::_updateAlgorithm(void)
 TensorStream_SGD::TensorStream_SGD(DataStream& paperX, const Config& config)
     : TensorStream_GD(paperX, config)
     , _numSample(_config->findAlgoSettings<int>("numSample"))
+    , _storageSize(1000)
+    , _prob(0.7)
 {
     _use_AtA = false;
+
+    _streamMiner = new StreamMiner(_storageSize, _prob); // Should be changed
+    _streamMiner->initialize(_X);
+}
+
+TensorStream_SGD::~TensorStream_SGD(void)
+{
+    delete _streamMiner;
+}
+
+void TensorStream_SGD::updateTensor(const DataStream::Event& e)
+{
+    const int unitNum = _config->unitNum();
+    const int unitSize = _config->unitSize();
+    const int numMode = _config->numMode();
+
+    // Clear dX
+    _dX->clear();
+
+    // Eventwise
+    std::vector<int> coord(numMode);
+    for (int m = 0; m < numMode - 1; ++m) {
+        coord[m] = e.nonTempCoord[m];
+    }
+    coord[numMode - 1] = e.newUnitIdx;
+
+    if (e.newUnitIdx != -1) {
+        _dX->insert(coord, e.val);
+        _X->insert(coord, e.val);
+        _streamMiner->insert(coord);
+    }
+
+    if (e.newUnitIdx != unitNum - 1) {
+        coord[numMode - 1] += 1;
+        _dX->insert(coord, -e.val);
+        _X->insert(coord, -e.val);
+        _streamMiner->insert(coord);
+    }
 }
 
 void TensorStream_SGD::_updateAlgorithm(void)
@@ -568,8 +608,11 @@ int TensorStream_SGD::_sampleEntry(std::unordered_set<std::vector<int>>& sampled
     // Insert sampled elements
     pickIdx_replacement(dimension, _numSample, sampledIdx);
 
+    // Insert sampled non-zero entries
+    _streamMiner->sample(5, sampledIdx);
+
     // Return the number of sampled entries
-    return numdX + _numSample;
+    return numdX + _numSample + 5;
 }
 
 void TensorStream_SGD::_compute_gradA(std::vector<std::unordered_map<int, Eigen::MatrixXd>>& gradA) const
